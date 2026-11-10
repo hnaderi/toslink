@@ -10,16 +10,15 @@
  *
  * Wire format of one message:
  *
- *   [PRE x TL_PRE_LEN] [SOF] [LEN SEQ CMD PAYLOAD.. CRC_HI CRC_LO]* [IDLE x TL_POST_LEN]
- *                              * each byte sent as two nibble symbols, high nibble first
+ *   ..IDLE IDLE [PRE x TL_PRE_LEN] [SOF] [LEN SEQ CMD PAYLOAD.. CRC_HI CRC_LO]* IDLE IDLE..
+ *                                        * each byte sent as two nibble symbols, high nibble first
  *
- *   IDLE (0x55) : what the line carries between messages: a 50 % square wave
- *                 at TL_BAUD/2, produced by LEDC with no CPU involvement.
+ *   IDLE (0x55) : sent continuously between messages, so the line never rests.
  *   PRE  (0xF0) : 5 low + 5 high bit times. It has only ONE falling edge per
- *                 UART frame, so a receiver that is mis-framed after the idle
- *                 square wave is forced back onto the correct byte grid within
- *                 a few bytes. (0x55 alone cannot do this: every falling edge
- *                 in it looks like a valid start bit.)
+ *                 UART frame, so a receiver that is mis-framed (after power-up
+ *                 or a disturbance) is forced back onto the correct byte grid
+ *                 within a few bytes. (0x55 alone cannot do this: every falling
+ *                 edge in it looks like a valid start bit.)
  *   SOF  (0x2B) : start of frame; never used as a data symbol.
  */
 #pragma once
@@ -39,8 +38,7 @@ extern "C" {
 #define TL_SYM_PRE       0xF0
 #define TL_SYM_SOF       0x2B
 
-#define TL_PRE_LEN       16   /* 160 us: receiver realignment + task-latency margin */
-#define TL_POST_LEN      32   /* 320 us: keeps the line toggling until LEDC takes over */
+#define TL_PRE_LEN       16   /* 160 us of realignment before every frame */
 #define TL_PRE_MIN_SEEN  2    /* RX accepts SOF only after this many PRE symbols */
 
 #define TL_MAX_PAYLOAD   16

@@ -4,7 +4,6 @@
 #include "esp_err.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
-#include "driver/ledc.h"
 #include "toslink_proto.h"
 
 #ifdef __cplusplus
@@ -12,30 +11,32 @@ extern "C" {
 #endif
 
 typedef struct {
-    gpio_num_t pin;              /* GPIO wired to the TOTX input */
-    uart_port_t uart_port;       /* any HP UART not used elsewhere */
-    ledc_timer_t ledc_timer;     /* LEDC timer reserved for the idle carrier */
-    ledc_channel_t ledc_channel; /* LEDC channel reserved for the idle carrier */
-    bool invert;                 /* true: pin is active-low (for an inverting level shifter) */
+    gpio_num_t pin;          /* GPIO wired to the TOTX input */
+    uart_port_t uart_port;   /* any HP UART not used elsewhere */
+    bool invert;             /* true: pin is active-low (for an inverting level shifter) */
+    int task_priority;       /* feeder task; must refill the FIFO within ~0.6 ms */
+    int task_core;           /* -1 = no affinity */
+    int queue_len;           /* messages that can wait to be sent */
 } toslink_tx_config_t;
 
 #define TOSLINK_TX_DEFAULT_CONFIG(gpio) {   \
     .pin = (gpio),                          \
     .uart_port = UART_NUM_1,                \
-    .ledc_timer = LEDC_TIMER_0,             \
-    .ledc_channel = LEDC_CHANNEL_0,         \
     .invert = false,                        \
+    .task_priority = 15,                    \
+    .task_core = -1,                        \
+    .queue_len = 8,                         \
 }
 
-/* Sets up UART + LEDC and starts the idle carrier on the pin. Call once. */
+/* Sets up the UART and starts the feeder task that keeps the line toggling. Call once. */
 esp_err_t toslink_tx_init(const toslink_tx_config_t *cfg);
 
 /*
- * Sends one message; blocks ~0.3-0.8 ms. Thread-safe.
- * Returns ESP_ERR_TIMEOUT if the calling task was preempted long enough that
- * the frame may be corrupted on the wire: just send it again.
+ * Queues one message for transmission. It goes on the wire within ~1.5 ms.
+ * Blocks while the queue is full for up to `wait` ticks; returns
+ * ESP_ERR_TIMEOUT if it is still full. Safe to call from any task.
  */
-esp_err_t toslink_tx_send(const tl_msg_t *msg);
+esp_err_t toslink_tx_send(const tl_msg_t *msg, TickType_t wait);
 
 #ifdef __cplusplus
 }

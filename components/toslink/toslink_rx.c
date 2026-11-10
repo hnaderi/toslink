@@ -1,14 +1,19 @@
 /*
  * Receiver: the hardware UART does the bit-level work; this task only scans
  * the byte stream. Between messages the stream is IDLE (0x55) symbols, which
- * hit the first test in parse() and are dropped, so the idle load is a few
- * hundred task wake-ups per second.
+ * hit the first test in parse() and are dropped.
+ *
+ * The RX FIFO "full" threshold is lowered from the driver default (120 of 128)
+ * to 64: at 1 Mbaud the default leaves only 80 us to service the interrupt
+ * before an overflow, and an overflow makes the driver reset the FIFO.
+ * UART-level errors are counted from the driver's event queue.
  */
 #include <string.h>
 #include "toslink_rx.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_timer.h"
 #include "esp_check.h"
 #include "esp_log.h"
@@ -18,11 +23,14 @@ static const char *TAG = "toslink_rx";
 #define RX_RINGBUF_LEN   4096   /* ~40 ms of line data at 1 Mbaud */
 #define RX_CHUNK         256
 #define RX_STACK         3072
+#define RX_FULL_THRESHOLD 64
+#define RX_EVENT_QUEUE   64
 
 typedef enum { ST_HUNT, ST_BODY } rx_state_t;
 
 static struct {
     toslink_rx_config_t cfg;
+    QueueHandle_t events;
     bool running;
     rx_state_t state;
     uint8_t pre_seen;
@@ -118,6 +126,19 @@ static void rx_task(void *arg)
         for (int i = 0; i < n; i++) {
             parse(buf[i]);
         }
+        /* Drain driver events without blocking; only errors are of interest. */
+        uart_event_t ev;
+        while (xQueueReceive(s_rx.events, &ev, 0) == pdTRUE) {
+            if (ev.type == UART_FRAME_ERR || ev.type == UART_BREAK) {
+                s_rx.stats.uart_frame_errors++;
+            } else if (ev.type == UART_FIFO_OVF || ev.type == UART_BUFFER_FULL) {
+                s_rx.stats.uart_overflows++;
+                if (ev.type == UART_BUFFER_FULL) {
+                    uart_flush_input(s_rx.cfg.uart_port);   /* driver stops receiving until space is made */
+                }
+                s_rx.state = ST_HUNT;                       /* bytes were lost: drop any partial frame */
+            }
+        }
     }
 }
 
@@ -139,13 +160,15 @@ esp_err_t toslink_rx_init(const toslink_rx_config_t *cfg)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
-    ESP_RETURN_ON_ERROR(uart_driver_install(cfg->uart_port, RX_RINGBUF_LEN, 0, 0, NULL, 0), TAG, "uart install");
+    ESP_RETURN_ON_ERROR(uart_driver_install(cfg->uart_port, RX_RINGBUF_LEN, 0, RX_EVENT_QUEUE, &s_rx.events, 0),
+                        TAG, "uart install");
     ESP_RETURN_ON_ERROR(uart_param_config(cfg->uart_port, &uart_cfg), TAG, "uart config");
     ESP_RETURN_ON_ERROR(uart_set_pin(cfg->uart_port, UART_PIN_NO_CHANGE, cfg->pin,
                                      UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE), TAG, "uart pin");
     if (cfg->invert) {
         ESP_RETURN_ON_ERROR(uart_set_line_inverse(cfg->uart_port, UART_SIGNAL_RXD_INV), TAG, "rx invert");
     }
+    ESP_RETURN_ON_ERROR(uart_set_rx_full_threshold(cfg->uart_port, RX_FULL_THRESHOLD), TAG, "rx threshold");
 
     const BaseType_t core = (cfg->task_core < 0) ? tskNO_AFFINITY : (BaseType_t)cfg->task_core;
     ESP_RETURN_ON_FALSE(xTaskCreatePinnedToCore(rx_task, "toslink_rx", RX_STACK, NULL,

@@ -2,7 +2,7 @@
  * Toslink link demo.
  *   idf.py menuconfig  ->  "Toslink demo"  ->  pick the role and GPIO for each board.
  *
- * TX: every CONFIG_TOSLINK_DEMO_SEND_PERIOD_MS sends command 0x01 carrying a
+ * TX: every CONFIG_TOSLINK_DEMO_SEND_PERIOD_MS queues command 0x01 carrying a
  *     32-bit counter, CONFIG_TOSLINK_DEMO_REPEATS times (the link is one-way,
  *     so repetition stands in for acknowledgements).
  * RX: prints every new command once, and link statistics every 5 s.
@@ -39,18 +39,13 @@ void app_main(void)
                          (uint8_t)(counter >> 8), (uint8_t)counter },
         };
 
-        int sent = 0;
-        int retries = 0;
-        while (sent < CONFIG_TOSLINK_DEMO_REPEATS && retries < 10) {
-            if (toslink_tx_send(&msg) == ESP_OK) {
-                sent++;
-            } else {
-                retries++;            /* preempted mid-frame: send that copy again */
+        int queued = 0;
+        for (int i = 0; i < CONFIG_TOSLINK_DEMO_REPEATS; i++) {
+            if (toslink_tx_send(&msg, pdMS_TO_TICKS(100)) == ESP_OK) {
+                queued++;
             }
-            vTaskDelay(1);
         }
-        ESP_LOGI(TAG, "sent seq %u counter %" PRIu32 " (%d copies, %d retries)",
-                 msg.seq, counter, sent, retries);
+        ESP_LOGI(TAG, "sent seq %u counter %" PRIu32 " (%d copies)", msg.seq, counter, queued);
         vTaskDelay(pdMS_TO_TICKS(CONFIG_TOSLINK_DEMO_SEND_PERIOD_MS));
     }
 }
@@ -82,7 +77,9 @@ void app_main(void)
         toslink_rx_stats_t st;
         toslink_rx_get_stats(&st);
         ESP_LOGI(TAG, "stats: ok %" PRIu32 ", duplicates %" PRIu32 ", crc errors %" PRIu32
-                 ", symbol errors %" PRIu32, st.frames_ok, st.duplicates, st.crc_errors, st.symbol_errors);
+                 ", symbol errors %" PRIu32 ", uart frame errors %" PRIu32 ", uart overflows %" PRIu32,
+                 st.frames_ok, st.duplicates, st.crc_errors, st.symbol_errors,
+                 st.uart_frame_errors, st.uart_overflows);
     }
 }
 

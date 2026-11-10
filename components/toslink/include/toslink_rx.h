@@ -41,6 +41,8 @@ typedef struct {
     uint32_t duplicates;
     uint32_t crc_errors;
     uint32_t symbol_errors;  /* invalid symbol or length inside a frame */
+    uint32_t uart_frame_errors;  /* bad stop bit seen by the UART: signal-level problem */
+    uint32_t uart_overflows;     /* RX FIFO or ring buffer overflowed: bytes were dropped */
 } toslink_rx_stats_t;
 
 /* Sets up the UART and starts the receiver task. Call once. */
