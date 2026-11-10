@@ -1,0 +1,4 @@
+version: "1.0.1"
+description: "One-way command link over Toslink (TOTX/TORX) using UART + LEDC with DC-balanced line coding"
+dependencies:
+  idf: ">=6.0"
