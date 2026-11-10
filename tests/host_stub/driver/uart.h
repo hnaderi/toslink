@@ -15,3 +15,5 @@ static inline int uart_read_bytes(uart_port_t p, void *b, uint32_t l, uint32_t t
 static inline int uart_driver_install(uart_port_t p, int a, int b, int c, void *q, int f) { (void)p;(void)a;(void)b;(void)c;(void)q;(void)f; return 0; }
 static inline int uart_param_config(uart_port_t p, const uart_config_t *c) { (void)p;(void)c; return 0; }
 static inline int uart_set_pin(uart_port_t p, int a, int b, int c, int d) { (void)p;(void)a;(void)b;(void)c;(void)d; return 0; }
+#define UART_SIGNAL_RXD_INV (1 << 2)
+static inline int uart_set_line_inverse(uart_port_t p, uint32_t m) { (void)p; (void)m; return 0; }

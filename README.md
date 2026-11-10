@@ -57,6 +57,20 @@ struct if your application already uses those. The TX pin must be routable
 through the GPIO matrix: avoid the UART's dedicated IO-MUX TX pin (init
 returns `ESP_ERR_NOT_SUPPORTED` with a log message if you pick one).
 
+## Inverted (active-low) signals
+
+Set `.invert = true` in either config (or the matching menuconfig option in the
+demo) when a level shifter in the path inverts the signal.
+
+* **TX:** inversion is done in the GPIO matrix, so it applies to both the LEDC
+  idle carrier and the UART frames on the shared pin.
+* **RX:** the UART's own RX inversion is used.
+* The two settings are independent. What matters is that the *receiving UART*
+  sees the original polarity: an inverter on the TX side must be cancelled by
+  either a second inverter in the RX path or `.invert = true` on the receiver.
+* Line coding is unaffected: an inverted balanced frame is still exactly 50 %
+  high with the same maximum pulse lengths.
+
 ## How it works
 
 * **Line coding.** 8N1 UART at 1 Mbaud, but only bytes with exactly four 1-bits

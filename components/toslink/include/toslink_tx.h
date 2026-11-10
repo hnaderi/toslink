@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include "esp_err.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
@@ -15,6 +16,7 @@ typedef struct {
     uart_port_t uart_port;       /* any HP UART not used elsewhere */
     ledc_timer_t ledc_timer;     /* LEDC timer reserved for the idle carrier */
     ledc_channel_t ledc_channel; /* LEDC channel reserved for the idle carrier */
+    bool invert;                 /* true: pin is active-low (for an inverting level shifter) */
 } toslink_tx_config_t;
 
 #define TOSLINK_TX_DEFAULT_CONFIG(gpio) {   \
@@ -22,6 +24,7 @@ typedef struct {
     .uart_port = UART_NUM_1,                \
     .ledc_timer = LEDC_TIMER_0,             \
     .ledc_channel = LEDC_CHANNEL_0,         \
+    .invert = false,                        \
 }
 
 /* Sets up UART + LEDC and starts the idle carrier on the pin. Call once. */

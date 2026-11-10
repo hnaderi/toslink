@@ -17,10 +17,20 @@ menu "Toslink demo"
         depends on TOSLINK_DEMO_ROLE_TX
         default 4
 
+    config TOSLINK_DEMO_TX_INVERT
+        bool "Invert TX pin (active-low, for an inverting level shifter)"
+        depends on TOSLINK_DEMO_ROLE_TX
+        default n
+
     config TOSLINK_DEMO_RX_GPIO
         int "GPIO wired to the TORX output"
         depends on TOSLINK_DEMO_ROLE_RX
         default 5
+
+    config TOSLINK_DEMO_RX_INVERT
+        bool "Invert RX pin (signal passes through an inverting buffer)"
+        depends on TOSLINK_DEMO_ROLE_RX
+        default n
 
     config TOSLINK_DEMO_SEND_PERIOD_MS
         int "Interval between demo commands (ms)"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
 #include "driver/gpio.h"
@@ -16,6 +17,7 @@ typedef void (*toslink_rx_cb_t)(const tl_msg_t *msg, void *user_ctx);
 typedef struct {
     gpio_num_t pin;          /* GPIO wired to the TORX output */
     uart_port_t uart_port;   /* any HP UART not used elsewhere */
+    bool invert;             /* true: signal arrives inverted (e.g. through an inverting buffer) */
     int task_priority;
     int task_core;           /* -1 = no affinity */
     uint32_t dup_window_ms;  /* same seq within this window counts as a repeat */
@@ -26,6 +28,7 @@ typedef struct {
 #define TOSLINK_RX_DEFAULT_CONFIG(gpio, callback) { \
     .pin = (gpio),                                  \
     .uart_port = UART_NUM_1,                        \
+    .invert = false,                                \
     .task_priority = 10,                            \
     .task_core = -1,                                \
     .dup_window_ms = 200,                           \

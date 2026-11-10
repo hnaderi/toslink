@@ -23,7 +23,10 @@ static const char *TAG = "demo";
 
 void app_main(void)
 {
-    const toslink_tx_config_t cfg = TOSLINK_TX_DEFAULT_CONFIG((gpio_num_t)CONFIG_TOSLINK_DEMO_TX_GPIO);
+    toslink_tx_config_t cfg = TOSLINK_TX_DEFAULT_CONFIG((gpio_num_t)CONFIG_TOSLINK_DEMO_TX_GPIO);
+#if CONFIG_TOSLINK_DEMO_TX_INVERT
+    cfg.invert = true;
+#endif
     ESP_ERROR_CHECK(toslink_tx_init(&cfg));
 
     uint8_t seq = 0;
@@ -68,7 +71,10 @@ static void on_message(const tl_msg_t *msg, void *user_ctx)
 
 void app_main(void)
 {
-    const toslink_rx_config_t cfg = TOSLINK_RX_DEFAULT_CONFIG((gpio_num_t)CONFIG_TOSLINK_DEMO_RX_GPIO, on_message);
+    toslink_rx_config_t cfg = TOSLINK_RX_DEFAULT_CONFIG((gpio_num_t)CONFIG_TOSLINK_DEMO_RX_GPIO, on_message);
+#if CONFIG_TOSLINK_DEMO_RX_INVERT
+    cfg.invert = true;
+#endif
     ESP_ERROR_CHECK(toslink_rx_init(&cfg));
 
     for (;;) {

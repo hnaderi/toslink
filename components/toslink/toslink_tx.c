@@ -41,7 +41,8 @@ static struct {
 
 static inline void route_pin(uint32_t signal)
 {
-    esp_rom_gpio_connect_out_signal((uint32_t)s_tx.cfg.pin, signal, false, false);
+    /* Inverting in the GPIO matrix applies to whichever signal (UART or LEDC) drives the pin. */
+    esp_rom_gpio_connect_out_signal((uint32_t)s_tx.cfg.pin, signal, s_tx.cfg.invert, false);
 }
 
 esp_err_t toslink_tx_init(const toslink_tx_config_t *cfg)
@@ -106,7 +107,11 @@ esp_err_t toslink_tx_init(const toslink_tx_config_t *cfg)
                         "GPIO%d cannot be switched between UART and LEDC (IO-MUX pin?); use another GPIO",
                         cfg->pin);
 
-    ESP_LOGI(TAG, "idle carrier on GPIO%d, %d kbaud", cfg->pin, TL_BAUD / 1000);
+    /* Re-route LEDC ourselves so the configured polarity applies from now on. */
+    route_pin(s_tx.sig_ledc);
+
+    ESP_LOGI(TAG, "idle carrier on GPIO%d, %d kbaud, %s", cfg->pin, TL_BAUD / 1000,
+             cfg->invert ? "inverted" : "normal polarity");
     return ESP_OK;
 }
 

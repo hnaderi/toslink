@@ -143,6 +143,9 @@ esp_err_t toslink_rx_init(const toslink_rx_config_t *cfg)
     ESP_RETURN_ON_ERROR(uart_param_config(cfg->uart_port, &uart_cfg), TAG, "uart config");
     ESP_RETURN_ON_ERROR(uart_set_pin(cfg->uart_port, UART_PIN_NO_CHANGE, cfg->pin,
                                      UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE), TAG, "uart pin");
+    if (cfg->invert) {
+        ESP_RETURN_ON_ERROR(uart_set_line_inverse(cfg->uart_port, UART_SIGNAL_RXD_INV), TAG, "rx invert");
+    }
 
     const BaseType_t core = (cfg->task_core < 0) ? tskNO_AFFINITY : (BaseType_t)cfg->task_core;
     ESP_RETURN_ON_FALSE(xTaskCreatePinnedToCore(rx_task, "toslink_rx", RX_STACK, NULL,
