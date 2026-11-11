@@ -31,6 +31,7 @@ jobs:
       matrix:
         idf: [v6.0, v6.1]
         target: [esp32, esp32s2, esp32s3, esp32c3]
+        config: [tx, rx_max_payload, tx_soak]
     steps:
       # IDF names components after their directory, so it must match the component name.
       - uses: actions/checkout@v4
@@ -41,6 +42,7 @@ jobs:
           esp_idf_version: ${{ matrix.idf }}
           target: ${{ matrix.target }}
           path: toslink/examples/link_test
+          command: idf.py -D SDKCONFIG_DEFAULTS=../../.github/ci/${{ matrix.config }}.defaults build
 
   package:
     runs-on: ubuntu-latest

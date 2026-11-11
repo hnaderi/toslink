@@ -21,9 +21,16 @@ menu "Toslink link test"
         bool "Invert the signal (inverting level shifter in the path)"
         default n
 
+    config TOSLINK_TEST_SOAK
+        bool "Soak test: saturate the link continuously"
+        depends on TOSLINK_TEST_ROLE_TX
+        default n
+        help
+            Skips the text lines and pauses, for long error-rate runs.
+
     config TOSLINK_TEST_BURST_MS
         int "Bandwidth burst length (ms)"
-        depends on TOSLINK_TEST_ROLE_TX
+        depends on TOSLINK_TEST_ROLE_TX && !TOSLINK_TEST_SOAK
         default 5000
 
 endmenu

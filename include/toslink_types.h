@@ -1,12 +1,18 @@
 #pragma once
 
 #include <stdint.h>
+#ifdef ESP_PLATFORM
+#include "sdkconfig.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define TOSLINK_MAX_PAYLOAD 16
+#ifndef CONFIG_TOSLINK_MAX_PAYLOAD
+#define CONFIG_TOSLINK_MAX_PAYLOAD 16
+#endif
+#define TOSLINK_MAX_PAYLOAD CONFIG_TOSLINK_MAX_PAYLOAD
 
 typedef struct {
     uint8_t cmd;
@@ -21,6 +27,7 @@ typedef struct {
     uint32_t symbol_errors;     /* invalid symbol or length inside a frame */
     uint32_t uart_frame_errors; /* bad stop bit or break: signal-level problem */
     uint32_t uart_overflows;    /* RX FIFO or ring buffer overflowed: bytes were dropped */
+    uint32_t link_losses;       /* up -> down transitions */
 } toslink_rx_stats_t;
 
 #ifdef __cplusplus

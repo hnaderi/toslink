@@ -3,5 +3,5 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "priv_include"
     REQUIRES esp_driver_uart esp_driver_gpio freertos
-    PRIV_REQUIRES log
+    PRIV_REQUIRES log esp_timer
 )

@@ -1,0 +1,12 @@
+menu "Toslink"
+
+    config TOSLINK_MAX_PAYLOAD
+        int "Maximum message payload (bytes)"
+        range 1 255
+        default 16
+        help
+            Sets the size of toslink_msg_t. Each queued TX message uses about
+            this many bytes of RAM. The receiver's value must be at least the
+            transmitter's.
+
+endmenu

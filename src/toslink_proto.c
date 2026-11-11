@@ -2,22 +2,48 @@
 #include "toslink_proto.h"
 
 /*
- * Balanced bytes whose 8N1 frame never holds a level for more than 2 bit
- * times, including across start/stop bits and into the next frame.
- * IDLE and SOF satisfy the same rule but are reserved.
+ * Data symbols, sorted. Each has an even number of 1-bits, and its 8N1 frame
+ * never holds a level longer than 3 bit times, including across the start and
+ * stop bits and into the next frame. IDLE and SOF follow the same rules but
+ * are reserved. 55 are balanced; 9 have 3 or 7 of 10 bits high, split 4/5 so
+ * the average stays near 50 %.
  */
-static const uint8_t s_enc[16] = {
-    0x2D, 0x33, 0x35, 0x36, 0x4B, 0x4D, 0x53, 0x56, 0x59, 0x5A, 0x65, 0x66, 0x69, 0x6A, 0x93, 0x95,
+static const uint8_t s_enc[64] = {
+    0x12, 0x14, 0x17, 0x1B, 0x1D, 0x22, 0x24, 0x27, 0x2D, 0x2E, 0x33, 0x35, 0x36, 0x39, 0x3A, 0x47,
+    0x4B, 0x4D, 0x4E, 0x53, 0x56, 0x59, 0x5A, 0x5C, 0x63, 0x65, 0x66, 0x69, 0x6A, 0x6C, 0x71, 0x72,
+    0x74, 0x77, 0x8B, 0x8D, 0x8E, 0x93, 0x95, 0x96, 0x99, 0x9A, 0x9C, 0xA3, 0xA5, 0xA6, 0xA9, 0xAA,
+    0xAC, 0xB1, 0xB2, 0xB4, 0xB7, 0xC5, 0xC6, 0xC9, 0xCA, 0xCC, 0xD1, 0xD2, 0xD4, 0xD7, 0xDB, 0xDD,
 };
+
+_Static_assert(sizeof(s_enc) == (1 << TOSLINK_SYM_BITS), "symbol table size");
 
 int toslink_decode_symbol(uint8_t sym)
 {
-    for (int i = 0; i < 16; i++) {
-        if (s_enc[i] == sym) {
-            return i;
+    int lo = 0, hi = (int)sizeof(s_enc) - 1;
+    while (lo <= hi) {
+        const int mid = (lo + hi) / 2;
+        if (s_enc[mid] == sym) {
+            return mid;
+        }
+        if (s_enc[mid] < sym) {
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
         }
     }
     return -1;
+}
+
+bool toslink_symbol_valid(uint8_t sym)
+{
+    return sym == TOSLINK_SYM_IDLE || sym == TOSLINK_SYM_PRE || sym == TOSLINK_SYM_SOF ||
+           toslink_decode_symbol(sym) >= 0;
+}
+
+/* unsigned: with a 255 maximum a uint8_t comparison is always true and warns. */
+static bool len_ok(unsigned len)
+{
+    return len <= TOSLINK_MAX_PAYLOAD;
 }
 
 uint16_t toslink_crc16(const uint8_t *data, size_t len)
@@ -32,9 +58,28 @@ uint16_t toslink_crc16(const uint8_t *data, size_t len)
     return crc;
 }
 
+size_t toslink_encode_bytes(const uint8_t *raw, size_t n, uint8_t *out)
+{
+    const unsigned mask = (1u << TOSLINK_SYM_BITS) - 1;
+    unsigned acc = 0, nbits = 0;
+    size_t o = 0;
+    for (size_t i = 0; i < n; i++) {
+        acc = (acc << 8) | raw[i];
+        nbits += 8;
+        while (nbits >= TOSLINK_SYM_BITS) {
+            nbits -= TOSLINK_SYM_BITS;
+            out[o++] = s_enc[(acc >> nbits) & mask];
+        }
+    }
+    if (nbits) {
+        out[o++] = s_enc[(acc << (TOSLINK_SYM_BITS - nbits)) & mask];
+    }
+    return o;
+}
+
 size_t toslink_encode(uint8_t seq, const toslink_msg_t *msg, uint8_t *out)
 {
-    if (msg->len > TOSLINK_MAX_PAYLOAD) {
+    if (!len_ok(msg->len)) {
         return 0;
     }
 
@@ -47,13 +92,8 @@ size_t toslink_encode(uint8_t seq, const toslink_msg_t *msg, uint8_t *out)
     raw[r++] = (uint8_t)crc;
 
     memset(out, TOSLINK_SYM_PRE, TOSLINK_PRE_LEN);
-    size_t o = TOSLINK_PRE_LEN;
-    out[o++] = TOSLINK_SYM_SOF;
-    for (size_t i = 0; i < r; i++) {
-        out[o++] = s_enc[raw[i] >> 4];
-        out[o++] = s_enc[raw[i] & 0x0F];
-    }
-    return o;
+    out[TOSLINK_PRE_LEN] = TOSLINK_SYM_SOF;
+    return TOSLINK_PRE_LEN + 1 + toslink_encode_bytes(raw, r, &out[TOSLINK_PRE_LEN + 1]);
 }
 
 void toslink_parser_reset(toslink_parser_t *p)
@@ -93,37 +133,73 @@ bool toslink_parser_feed(toslink_parser_t *p, uint8_t sym, toslink_msg_t *out)
                 p->pre_seen++;
             }
         } else {
-            p->in_frame = (sym == TOSLINK_SYM_SOF && p->pre_seen >= TOSLINK_PRE_MIN_SEEN);
-            p->nsym = 0;
+            if (sym == TOSLINK_SYM_SOF && p->pre_seen >= TOSLINK_PRE_MIN_SEEN) {
+                p->in_frame = true;
+                p->acc = 0;
+                p->nbits = 0;
+                p->got = 0;
+                p->total = TOSLINK_MAX_RAW;
+            }
             p->pre_seen = 0;
         }
         return false;
     }
 
-    const int nib = toslink_decode_symbol(sym);
-    if (nib < 0) {
+    const int val = toslink_decode_symbol(sym);
+    if (val < 0) {
         p->stats.symbol_errors++;
         p->in_frame = false;
         p->pre_seen = (sym == TOSLINK_SYM_PRE) ? 1 : 0; /* a new frame may already be starting */
         return false;
     }
 
-    uint8_t *b = &p->raw[p->nsym / 2];
-    *b = (p->nsym % 2) ? (uint8_t)(*b | nib) : (uint8_t)(nib << 4);
-    p->nsym++;
-    if (p->nsym % 2) {
+    p->acc = (uint16_t)((p->acc << TOSLINK_SYM_BITS) | (unsigned)val);
+    p->nbits += TOSLINK_SYM_BITS;
+    if (p->nbits < 8) {
         return false;
     }
+    p->nbits -= 8;
+    p->raw[p->got++] = (uint8_t)(p->acc >> p->nbits);
 
-    const int got = p->nsym / 2;
-    if (p->raw[0] > TOSLINK_MAX_PAYLOAD) {
-        p->stats.symbol_errors++;
-        p->in_frame = false;
+    if (p->got == 1) {
+        if (!len_ok(p->raw[0])) {
+            p->stats.symbol_errors++;
+            p->in_frame = false;
+            return false;
+        }
+        p->total = (uint16_t)(TOSLINK_HDR_LEN + p->raw[0] + TOSLINK_CRC_LEN);
+    }
+    if (p->got < p->total) {
         return false;
     }
-    if (got < TOSLINK_HDR_LEN + p->raw[0] + TOSLINK_CRC_LEN) {
-        return false;
-    }
-    p->in_frame = false;
+    p->in_frame = false; /* any remaining bits are padding */
     return finish_frame(p, out);
+}
+
+void toslink_link_symbol(toslink_link_t *l, bool valid)
+{
+    if (!valid) {
+        l->run = 0;
+    } else if (l->run < TOSLINK_LINK_UP_RUN) {
+        l->run++;
+    }
+    if (l->run == TOSLINK_LINK_UP_RUN) {
+        l->healthy = true;
+    }
+}
+
+toslink_link_event_t toslink_link_poll(toslink_link_t *l, int64_t now_us, int64_t timeout_us)
+{
+    if (l->healthy) {
+        l->healthy = false;
+        l->last_healthy_us = now_us;
+        if (!l->up) {
+            l->up = true;
+            return TOSLINK_LINK_UP;
+        }
+    } else if (l->up && now_us - l->last_healthy_us >= timeout_us) {
+        l->up = false;
+        return TOSLINK_LINK_DOWN;
+    }
+    return TOSLINK_LINK_NONE;
 }

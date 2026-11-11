@@ -9,11 +9,17 @@ FetchContent_Declare(unity
 FetchContent_MakeAvailable(unity)
 
 set(COMPONENT_DIR ${CMAKE_CURRENT_LIST_DIR}/../..)
-
-add_executable(test_proto test_proto.c ${COMPONENT_DIR}/src/toslink_proto.c)
-target_include_directories(test_proto PRIVATE ${COMPONENT_DIR}/include ${COMPONENT_DIR}/priv_include)
-target_compile_options(test_proto PRIVATE -std=c11 -Wall -Wextra -Werror)
-target_link_libraries(test_proto PRIVATE unity)
-
 enable_testing()
-add_test(NAME test_proto COMMAND test_proto)
+
+# One executable per protocol configuration.
+function(toslink_test name)
+    add_executable(${name} test_proto.c ${COMPONENT_DIR}/src/toslink_proto.c)
+    target_include_directories(${name} PRIVATE ${COMPONENT_DIR}/include ${COMPONENT_DIR}/priv_include)
+    target_compile_definitions(${name} PRIVATE ${ARGN})
+    target_compile_options(${name} PRIVATE -std=c11 -Wall -Wextra -Werror)
+    target_link_libraries(${name} PRIVATE unity)
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+toslink_test(test_proto)
+toslink_test(test_proto_max_payload CONFIG_TOSLINK_MAX_PAYLOAD=255)
