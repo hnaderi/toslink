@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # OIDC upload once the registry lists this repo as a trusted uploader
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - name: Check tag matches manifest version
@@ -23,5 +23,3 @@ jobs:
         with:
           components: "toslink:."
           namespace: "hnaderi"
-          # Needed only until OIDC is set up (e.g. for the very first upload).
-          api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
