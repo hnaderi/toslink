@@ -1,5 +1,5 @@
 {
-  description = "Spike on toslink uart";
+  description = "toslink: one-way message link over Toslink for ESP-IDF";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -24,28 +24,29 @@
         format-cpp-check = pkgs.writeShellScriptBin "format-cpp-check" ''
           git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs clang-format --dry-run --Werror
         '';
+        example = "examples/link_test";
         fw-build = pkgs.writeShellScriptBin "fw-build" ''
           : ''${1:?Usage: fw-build <target>  (e.g. fw-build esp32s3)}
-          idf.py -B build/$1 -D IDF_TARGET=$1 build
+          idf.py -C ${example} -B "$PWD/build/$1" -D IDF_TARGET=$1 build
         '';
         fw-clean = pkgs.writeShellScriptBin "fw-clean" ''
-          : ''${1:?Usage: fw-build <target>  (e.g. fw-build esp32s3)}
-          idf.py -B build/$1 -D IDF_TARGET=$1 clean
+          : ''${1:?Usage: fw-clean <target>  (e.g. fw-clean esp32s3)}
+          idf.py -C ${example} -B "$PWD/build/$1" -D IDF_TARGET=$1 clean
         '';
         fw-flash = pkgs.writeShellScriptBin "fw-flash" ''
           : ''${1:?Usage: fw-flash <target>  (e.g. fw-flash esp32s3)}
-          idf.py -B build/$1 -D IDF_TARGET=$1 flash
+          idf.py -C ${example} -B "$PWD/build/$1" -D IDF_TARGET=$1 flash
         '';
         fw-monitor = pkgs.writeShellScriptBin "fw-monitor" ''
           : ''${1:?Usage: fw-monitor <target>  (e.g. fw-monitor esp32s3)}
-          idf.py -B build/$1 monitor
+          idf.py -C ${example} -B "$PWD/build/$1" monitor
         '';
         fw-menuconfig = pkgs.writeShellScriptBin "fw-menuconfig" ''
           : ''${1:?Usage: fw-menuconfig <target>  (e.g. fw-menuconfig esp32s3)}
-          idf.py -B build/$1 menuconfig
+          idf.py -C ${example} -B "$PWD/build/$1" menuconfig
         '';
-        fw-flash-release = pkgs.writeShellScriptBin "fw-flash-release" ''
-          esp-idf-env python flash-release.py "$@"
+        test-host = pkgs.writeShellScriptBin "test-host" ''
+          cmake -S test/host -B build/host && cmake --build build/host && ctest --test-dir build/host --output-on-failure
         '';
       in
       {
@@ -55,6 +56,7 @@
               inherit pkgs;
               idfVersion = "v6.1";
             })
+            cmake
             cmake-language-server
             tio
 
@@ -63,9 +65,9 @@
             fw-build
             fw-clean
             fw-flash
-            fw-flash-release
             fw-monitor
             fw-menuconfig
+            test-host
           ];
         };
       }

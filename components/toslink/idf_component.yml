@@ -1,4 +1,0 @@
-version: "2.0.0"
-description: "One-way command link over Toslink (TOTX/TORX) using a continuous DC-balanced UART stream"
-dependencies:
-  idf: ">=6.0"

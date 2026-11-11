@@ -1,4 +1,9 @@
 /.direnv/
-/build/
 /.cache/
 /compile_commands.json
+build/
+/dist/
+examples/*/sdkconfig
+examples/*/sdkconfig.old
+examples/*/dependencies.lock
+examples/*/managed_components/

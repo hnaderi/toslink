@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 3.22)
-set(SDKCONFIG "${CMAKE_BINARY_DIR}/sdkconfig")
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(toslink_demo)
+idf_component_register(
+    SRCS "src/toslink_proto.c" "src/toslink_tx.c" "src/toslink_rx.c" "src/toslink_uart.c"
+    INCLUDE_DIRS "include"
+    PRIV_INCLUDE_DIRS "priv_include"
+    REQUIRES esp_driver_uart esp_driver_gpio freertos
+    PRIV_REQUIRES log
+)

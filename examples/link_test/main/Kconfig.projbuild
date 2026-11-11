@@ -1,0 +1,29 @@
+menu "Toslink link test"
+
+    choice TOSLINK_TEST_ROLE
+        prompt "Board role"
+        default TOSLINK_TEST_ROLE_TX
+        help
+            Flash one board as transmitter and the other as receiver.
+
+        config TOSLINK_TEST_ROLE_TX
+            bool "Transmitter (drives the TOTX module)"
+        config TOSLINK_TEST_ROLE_RX
+            bool "Receiver (reads the TORX module)"
+    endchoice
+
+    config TOSLINK_TEST_GPIO
+        int "GPIO wired to the TOTX input / TORX output"
+        default 4 if TOSLINK_TEST_ROLE_TX
+        default 5
+
+    config TOSLINK_TEST_INVERT
+        bool "Invert the signal (inverting level shifter in the path)"
+        default n
+
+    config TOSLINK_TEST_BURST_MS
+        int "Bandwidth burst length (ms)"
+        depends on TOSLINK_TEST_ROLE_TX
+        default 5000
+
+endmenu

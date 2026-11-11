@@ -1,0 +1,4 @@
+dependencies:
+  hnaderi/toslink:
+    version: "*"
+    override_path: "../../../"

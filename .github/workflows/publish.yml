@@ -1,0 +1,27 @@
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC upload once the registry lists this repo as a trusted uploader
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tag matches manifest version
+        run: |
+          manifest=$(sed -n 's/^version: *"\(.*\)"/\1/p' idf_component.yml)
+          if [ "v$manifest" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match idf_component.yml version $manifest" >&2
+            exit 1
+          fi
+      - uses: espressif/upload-components-ci-action@v2
+        with:
+          components: "toslink:."
+          namespace: "hnaderi"
+          # Needed only until OIDC is set up (e.g. for the very first upload).
+          api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}

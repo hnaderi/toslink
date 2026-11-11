@@ -1,0 +1,24 @@
+version: "0.1.0"
+description: "One-way message link over Toslink optical modules (TOTX/TORX) using a continuous DC-balanced UART stream"
+url: "https://github.com/hnaderi/toslink"
+repository: "https://github.com/hnaderi/toslink.git"
+issues: "https://github.com/hnaderi/toslink/issues"
+license: "MIT"
+tags:
+  - toslink
+  - optical
+  - uart
+dependencies:
+  idf: ">=6.0"
+files:
+  exclude:
+    - ".github/**/*"
+    - ".envrc"
+    - ".clang-format"
+    - "flake.*"
+    - "test/**/*"
+    - "**/build/**/*"
+    - "**/sdkconfig"
+    - "**/sdkconfig.old"
+    - "**/dependencies.lock"
+    - "**/managed_components/**/*"
