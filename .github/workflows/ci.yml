@@ -21,9 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Pinned: the runner has several versions, and their output differs. Keep in sync with flake.nix.
+      - uses: cachix/install-nix-action@v31
+      # clang-format output varies between versions; the flake pins it.
       - name: clang-format
-        run: git ls-files -- '*.c' '*.h' | xargs clang-format-18 --dry-run --Werror
+        run: nix run .#format-cpp-check
 
   build-example:
     runs-on: ubuntu-latest

@@ -18,14 +18,16 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        # Same major version as CI (clang-format-18 on ubuntu-24.04).
-        clang-format = "${pkgs.llvmPackages_18.clang-tools}/bin/clang-format";
-        format-cpp = pkgs.writeShellScriptBin "format-cpp" ''
-          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs ${clang-format} -i
-        '';
-        format-cpp-check = pkgs.writeShellScriptBin "format-cpp-check" ''
-          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs ${clang-format} --dry-run --Werror
-        '';
+        format-cpp = pkgs.writeShellApplication {
+          name = "format-cpp";
+          runtimeInputs = with pkgs; [ git findutils clang-tools ];
+          text = "git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs clang-format -i";
+        };
+        format-cpp-check = pkgs.writeShellApplication {
+          name = "format-cpp-check";
+          runtimeInputs = with pkgs; [ git findutils clang-tools ];
+          text = "git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs clang-format --dry-run --Werror";
+        };
         example = "examples/link_test";
         fw-build = pkgs.writeShellScriptBin "fw-build" ''
           : ''${1:?Usage: fw-build <target>  (e.g. fw-build esp32s3)}
@@ -52,6 +54,8 @@
         '';
       in
       {
+        packages = { inherit format-cpp format-cpp-check; };
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             (espidf.lib.mkEspIdf {
