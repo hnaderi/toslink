@@ -18,11 +18,13 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        # Same major version as CI (clang-format-18 on ubuntu-24.04).
+        clang-format = "${pkgs.llvmPackages_18.clang-tools}/bin/clang-format";
         format-cpp = pkgs.writeShellScriptBin "format-cpp" ''
-          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs clang-format -i
+          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs ${clang-format} -i
         '';
         format-cpp-check = pkgs.writeShellScriptBin "format-cpp-check" ''
-          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs clang-format --dry-run --Werror
+          git ls-files -- '*.cpp' '*.c' '*.hpp' '*.h' | xargs ${clang-format} --dry-run --Werror
         '';
         example = "examples/link_test";
         fw-build = pkgs.writeShellScriptBin "fw-build" ''

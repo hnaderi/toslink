@@ -21,8 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pinned: the runner has several versions, and their output differs. Keep in sync with flake.nix.
       - name: clang-format
-        run: git ls-files -- '*.c' '*.h' | xargs clang-format --dry-run --Werror
+        run: git ls-files -- '*.c' '*.h' | xargs clang-format-18 --dry-run --Werror
 
   build-example:
     runs-on: ubuntu-latest
