@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        idf: [v6.0, v6.1]
+        idf: [v5.5, v6.0, v6.1]
         target: [esp32, esp32s2, esp32s3, esp32c3]
         config: [tx, rx_max_payload, tx_soak]
     steps:

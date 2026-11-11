@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/hnaderi/toslink/actions/workflows/ci.yml/badge.svg)](https://github.com/hnaderi/toslink/actions/workflows/ci.yml)
 
-One-way message link between ESP32 chips over Toslink optical modules (TOTX/TORX), for ESP-IDF 6.0+.
+One-way message link between ESP32 chips over Toslink optical modules (TOTX/TORX), for ESP-IDF 5.5+.
 
 - Continuous, DC-balanced 1 Mbaud UART stream, as the modules require
 - CRC-checked messages of a command byte plus up to 255 payload bytes
