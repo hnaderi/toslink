@@ -39,23 +39,23 @@ ESP_ERROR_CHECK(toslink_rx_new(&rx_cfg, &rx));
 
 Each end uses one HP UART (`uart_port`, default UART1) and one task. Callbacks run in the receiver task.
 
-Delivery is best effort: there are no acknowledgements or retransmissions. `toslink_rx_get_stats()` counts lost frames (from sequence gaps) and errors. Make critical commands idempotent and resend them.
+Delivery is best effort: there are no acknowledgements or retransmissions on a simplex link. `toslink_rx_get_stats()` counts lost frames (from sequence gaps) and errors. Don't rely on delivery for critical commands. This kind of link is useful for receiving regular updates or idempotent commands.
 
-The link is up after 32 consecutive valid symbols. It goes down after `link_timeout_ms` (default 20 ms) without them: fibre unplugged, transmitter off or reset, or a noisy signal. `toslink_rx_link_up()` returns the current state.
+The link is up after 32 consecutive valid symbols. It goes down after `link_timeout_ms` (default 20 ms) without them; for instance: fibre unplugged, transmitter off or reset, or a noisy signal. `toslink_rx_link_up()` returns the current state.
 
 ## Configuration
 
-`idf.py menuconfig` → *Toslink*. Both ends must match.
+`idf.py menuconfig` -> *Toslink*. Both ends must match.
 
 | Option | Default | |
 |---|---|---|
-| `TOSLINK_MAX_PAYLOAD` | 16 | 1–255 bytes. Each queued TX message uses about this much RAM. |
+| `TOSLINK_MAX_PAYLOAD` | 16 | 1-255 bytes. Each queued TX message uses about this much RAM. |
 
 Throughput with 16-byte payloads: 43 kB/s.
 
 ## Wire format
 
-8N1 UART at 1 Mbaud. Every byte on the wire is a symbol with an even number of 1-bits, so a single bit error always yields an invalid symbol. Each byte is 30–70 % high (about 50 % on average), and data pulses last at most 3 µs.
+8N1 UART at 1 Mbaud. Every byte on the wire is a symbol with an even number of 1-bits, so a single bit error always yields an invalid symbol. Each byte is 30-70 % high (about 50 % on average), and data pulses last at most 3 µs.
 
 ```
 ..IDLE IDLE [PRE x8] [SOF] [LEN SEQ CMD PAYLOAD.. CRC16] IDLE..
@@ -74,9 +74,9 @@ Throughput with 16-byte payloads: 43 kB/s.
 
 ## Example
 
-[`examples/link_test`](examples/link_test): flash one board as transmitter and one as receiver (menuconfig → *Toslink link test*). The receiver prints throughput, error counters and link changes. Enable *Soak test* on the transmitter for long error-rate runs.
+[`examples/link_test`](examples/link_test): flash one board as transmitter and one as receiver (menuconfig -> *Toslink link test*). The receiver prints throughput, error counters and link changes. Enable *Soak test* on the transmitter for long error-rate runs.
 
-Wiring: TX GPIO → TOTX input, TORX output → RX GPIO, both modules on 3.3 V.
+Wiring: TX GPIO -> TOTX input, TORX output -> RX GPIO, both modules on 3.3 V.
 
 On a healthy link, `crc`, `sym`, `lost`, `uart-fe` and `ovf` stay at 0 after start-up. Rising `uart-fe` points to the signal: wiring, level shifting or pulse distortion. Rising `ovf` points to CPU load on the receiver.
 
